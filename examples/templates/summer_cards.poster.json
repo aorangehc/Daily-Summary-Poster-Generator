@@ -1,0 +1,10 @@
+{
+  "canvas": { "width": 1080, "height": 1920, "dpi": 150, "padding": 56 },
+  "theme": "fresh_summer",
+  "modules": [
+    { "type": "title", "title": "Daily Review", "subtitle": "2025-06-01", "align": "center", "style": { "bg_gradient": { "start": "#ffffff", "end": "#f2fbf7", "angle": 90 } } },
+    { "type": "summary", "title": "今日清单", "items": ["晨跑 5km 🏃", "番茄 6 个 ⏱", "复盘与记录 ✍️"], "bullet": "✓", "style": { "bg_color": "#ffffff" } },
+    { "type": "quote", "text": "Keep it simple.", "author": "—", "style": { "bg_color": "#ffffff" } }
+  ]
+}
+

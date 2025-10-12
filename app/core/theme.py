@@ -13,6 +13,7 @@ THEMES: Dict[str, dict] = {
             "card": "#1a1a1a",
             "card_border": "#2a2a2a",
         },
+        # no background gradient for pure black theme
         "tokens": {
             "radius": 20,
             "gap": 24,
@@ -42,6 +43,7 @@ THEMES: Dict[str, dict] = {
             "card": "#151a2b",
             "card_border": "#22273a",
         },
+        "background_gradient": {"start": "#0F1220", "end": "#1A2140", "angle": 90},
         "tokens": {"radius": 20, "gap": 24, "column_gap": 40, "card_padding": 24},
     },
     "fresh_summer": {
@@ -54,7 +56,7 @@ THEMES: Dict[str, dict] = {
             "card": "#FFFFFF",
             "card_border": "#DAE6E0",
         },
+        "background_gradient": {"start": "#F7FFFB", "end": "#E8FFF5", "angle": 90},
         "tokens": {"radius": 20, "gap": 24, "column_gap": 40, "card_padding": 24},
     },
 }
-

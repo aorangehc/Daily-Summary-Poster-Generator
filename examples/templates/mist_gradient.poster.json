@@ -1,0 +1,14 @@
+{
+  "canvas": { "width": 1240, "height": 1754, "dpi": 150, "padding": 64 },
+  "theme": "mist_blueviolet",
+  "modules": [
+    { "type": "title", "title": "周报", "subtitle": "W22 • 产品部", "align": "left", "style": { "bg_gradient": { "start": "#151a2b", "end": "#1f2740", "angle": 90 } } },
+    { "type": "stats", "title": "关键指标", "metrics": [
+      { "label": "新功能", "value": "2" },
+      { "label": "修复", "value": "8" },
+      { "label": "评审", "value": "3" }
+    ], "columns": 3, "style": { "bg_color": "#151a2b" } },
+    { "type": "rich", "title": "Highlights", "body": "1) 完成看板改版\n2) 数据看板上线 :)", "items": ["下周目标：优化留存漏斗"], "style": { "bg_color": "#151a2b" } }
+  ]
+}
+

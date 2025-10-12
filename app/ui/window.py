@@ -1,15 +1,18 @@
 import json
 import os
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, colorchooser
 from typing import List
 
 from core.renderer import render_poster
 from core.theme import THEMES, DEFAULT_THEME_ID
+from core import storage
 from modules.title import TitleModule
 from modules.summary import SummaryModule
 from modules.stats import StatsModule
 from modules.quote import QuoteModule
+from modules.rich import RichModule
+from modules.image import ImageModule
 
 try:
     from PIL import ImageTk
@@ -37,6 +40,7 @@ class AppWindow:
             QuoteModule(text="不积跬步，无以至千里。", author="荀子"),
         ]
         self.selected_index = tk.IntVar(value=0)
+        self.current_path: str | None = None
 
         self._build_ui()
         self._refresh_preview()
@@ -46,6 +50,22 @@ class AppWindow:
 
     # UI construction
     def _build_ui(self):
+        # Menubar
+        menubar = tk.Menu(self.root)
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="新建", command=self._new_config)
+        file_menu.add_command(label="打开...", command=self._open_config)
+        file_menu.add_command(label="保存", command=self._save_config)
+        file_menu.add_command(label="另存为...", command=self._save_as)
+        file_menu.add_separator()
+        file_menu.add_command(label="从模板新建...", command=self._new_from_template)
+        menubar.add_cascade(label="文件", menu=file_menu)
+
+        theme_menu = tk.Menu(menubar, tearoff=0)
+        theme_menu.add_command(label="主题调色板...", command=self._open_theme_editor)
+        menubar.add_cascade(label="主题", menu=theme_menu)
+        self.root.config(menu=menubar)
+
         self.root.columnconfigure(0, weight=0)
         self.root.columnconfigure(1, weight=1)
         self.root.rowconfigure(0, weight=1)
@@ -97,6 +117,11 @@ class AppWindow:
         ttk.Button(add_frame, text="新增统计", command=lambda: self._add_module("stats")).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 4))
         ttk.Button(add_frame, text="新增金句", command=lambda: self._add_module("quote")).pack(side=tk.LEFT, expand=True, fill=tk.X)
 
+        add2 = ttk.Frame(mod_frame)
+        add2.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        ttk.Button(add2, text="新增自定义模块", command=lambda: self._add_module("rich")).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 4))
+        ttk.Button(add2, text="新增图片/贴纸", command=lambda: self._add_module("image")).pack(side=tk.LEFT, expand=True, fill=tk.X)
+
         # Editor section
         self.editor_box = ttk.Labelframe(control_frame, text="模块编辑", padding=8)
         self.editor_box.grid(row=4, column=0, sticky="new", pady=(10, 0))
@@ -114,6 +139,7 @@ class AppWindow:
         bottom = ttk.Frame(right)
         bottom.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         ttk.Button(bottom, text="导出 PNG", command=self._export_png).pack(side=tk.LEFT)
+        ttk.Button(bottom, text="保存配置", command=self._save_config).pack(side=tk.LEFT, padx=(8, 0))
 
         self._refresh_module_list()
 
@@ -127,6 +153,9 @@ class AppWindow:
             return
         mod = self.modules[idx]
 
+        # common: advanced style button
+        ttk.Button(self.editor_box, text="高级样式...", command=lambda m=mod: self._open_style_editor(m)).pack(fill=tk.X, pady=(0, 8))
+
         if isinstance(mod, TitleModule):
             self._build_title_editor(mod)
         elif isinstance(mod, SummaryModule):
@@ -135,6 +164,10 @@ class AppWindow:
             self._build_stats_editor(mod)
         elif isinstance(mod, QuoteModule):
             self._build_quote_editor(mod)
+        elif isinstance(mod, RichModule):
+            self._build_rich_editor(mod)
+        elif isinstance(mod, ImageModule):
+            self._build_image_editor(mod)
 
     def _build_title_editor(self, mod: TitleModule):
         title_var = tk.StringVar(value=mod.title)
@@ -217,6 +250,54 @@ class AppWindow:
 
         ttk.Button(self.editor_box, text="应用", command=apply).pack(fill=tk.X, pady=(8, 0))
 
+    def _build_rich_editor(self, mod: RichModule):
+        title_var = tk.StringVar(value=mod.title or "")
+        body_text = tk.Text(self.editor_box, height=6)
+        body_text.insert("1.0", mod.body or "")
+        items_text = tk.Text(self.editor_box, height=4)
+        items_text.insert("1.0", "\n".join(mod.items))
+        align_var = tk.StringVar(value=mod.align)
+
+        ttk.Label(self.editor_box, text="标题").pack(anchor="w")
+        ttk.Entry(self.editor_box, textvariable=title_var).pack(fill=tk.X)
+        ttk.Label(self.editor_box, text="正文").pack(anchor="w", pady=(6, 0))
+        body_text.pack(fill=tk.BOTH)
+        ttk.Label(self.editor_box, text="列表（每行一项）").pack(anchor="w", pady=(6, 0))
+        items_text.pack(fill=tk.BOTH)
+        ttk.Label(self.editor_box, text="对齐").pack(anchor="w", pady=(6, 0))
+        af = ttk.Frame(self.editor_box); af.pack(anchor="w")
+        ttk.Radiobutton(af, text="左对齐", variable=align_var, value="left").pack(side=tk.LEFT)
+        ttk.Radiobutton(af, text="居中", variable=align_var, value="center").pack(side=tk.LEFT)
+
+        def apply():
+            mod.title = (title_var.get() or None)
+            mod.body = body_text.get("1.0", tk.END).strip() or None
+            mod.items = [ln.strip() for ln in items_text.get("1.0", tk.END).strip().splitlines() if ln.strip()]
+            mod.align = align_var.get()
+            self._refresh_preview()
+
+        ttk.Button(self.editor_box, text="应用", command=apply).pack(fill=tk.X, pady=(8, 0))
+
+    def _build_image_editor(self, mod: ImageModule):
+        path_var = tk.StringVar(value=mod.path)
+        fit_var = tk.StringVar(value=mod.fit)
+        h_var = tk.IntVar(value=mod.height)
+        row = ttk.Frame(self.editor_box); row.pack(fill=tk.X)
+        ttk.Entry(row, textvariable=path_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(row, text="选择图片", command=lambda: self._choose_image(path_var)).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Label(self.editor_box, text="填充方式").pack(anchor="w", pady=(6, 0))
+        ttk.Combobox(self.editor_box, textvariable=fit_var, values=["cover", "contain"], state="readonly").pack(fill=tk.X)
+        ttk.Label(self.editor_box, text="高度(px)").pack(anchor="w", pady=(6, 0))
+        ttk.Spinbox(self.editor_box, from_=60, to=1200, textvariable=h_var).pack(fill=tk.X)
+
+        def apply():
+            mod.path = path_var.get()
+            mod.fit = fit_var.get()
+            mod.height = int(h_var.get())
+            self._refresh_preview()
+
+        ttk.Button(self.editor_box, text="应用", command=apply).pack(fill=tk.X, pady=(8, 0))
+
     # Module ops
     def _add_module(self, mtype: str):
         if mtype == "title":
@@ -227,6 +308,10 @@ class AppWindow:
             self.modules.append(StatsModule(title="数据", metrics=[{"label": "项", "value": "值"}], columns=2))
         elif mtype == "quote":
             self.modules.append(QuoteModule(text="金句", author="——"))
+        elif mtype == "rich":
+            self.modules.append(RichModule(title="模块标题", body="这里是正文，可以包含 emoji 🙂 和换行。", items=["要点一", "要点二"]))
+        elif mtype == "image":
+            self.modules.append(ImageModule(path="", fit="cover", height=200))
         self.selected_index.set(len(self.modules) - 1)
         self._refresh_module_list()
         self._build_editors()
@@ -320,3 +405,248 @@ class AppWindow:
         except Exception as e:
             messagebox.showerror("导出失败", str(e))
 
+    # File ops
+    def _new_config(self):
+        self.modules = [TitleModule(title="今日总结", subtitle="2025-06-01", align="left")]
+        self.theme_id.set(DEFAULT_THEME_ID)
+        self.canvas_width.set(1240)
+        self.canvas_height.set(1754)
+        self.canvas_padding.set(64)
+        self.scale.set(1.0)
+        self.current_path = None
+        self._refresh_module_list()
+        self._build_editors()
+        self._refresh_preview()
+
+    def _open_config(self):
+        path = filedialog.askopenfilename(filetypes=[("Poster JSON", "*.poster.json"), ("JSON", "*.json")])
+        if not path:
+            return
+        try:
+            data = storage.load_config(path)
+            self._load_from_data(data)
+            self.current_path = path
+        except Exception as e:
+            messagebox.showerror("打开失败", str(e))
+
+    def _save_config(self):
+        if not self.current_path:
+            return self._save_as()
+        try:
+            data = self._to_data()
+            storage.save_config(self.current_path, data)
+            messagebox.showinfo("保存成功", self.current_path)
+        except Exception as e:
+            messagebox.showerror("保存失败", str(e))
+
+    def _save_as(self):
+        path = filedialog.asksaveasfilename(defaultextension=".poster.json", filetypes=[("Poster JSON", "*.poster.json"), ("JSON", "*.json")])
+        if not path:
+            return
+        self.current_path = path
+        self._save_config()
+
+    def _new_from_template(self):
+        # simple chooser: list files under examples/templates
+        base = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'examples', 'templates')
+        base = os.path.abspath(base)
+        if not os.path.isdir(base):
+            messagebox.showinfo("模板", "没有找到模板目录：examples/templates")
+            return
+        files = [f for f in os.listdir(base) if f.endswith('.poster.json')]
+        if not files:
+            messagebox.showinfo("模板", "模板目录为空")
+            return
+        # quick select using simple listbox popup
+        top = tk.Toplevel(self.root)
+        top.title("选择模板")
+        lb = tk.Listbox(top, width=50, height=8)
+        lb.pack(fill=tk.BOTH, expand=True)
+        for f in files:
+            lb.insert(tk.END, f)
+
+        def use_sel():
+            sel = lb.curselection()
+            if not sel:
+                return
+            fp = os.path.join(base, files[sel[0]])
+            try:
+                data = storage.load_config(fp)
+                self._load_from_data(data)
+                self.current_path = None
+            except Exception as e:
+                messagebox.showerror("加载模板失败", str(e))
+            finally:
+                top.destroy()
+
+        ttk.Button(top, text="使用此模板", command=use_sel).pack(fill=tk.X)
+
+    def _load_from_data(self, data: dict):
+        canvas = data.get('canvas', {})
+        self.canvas_width.set(int(canvas.get('width', 1240)))
+        self.canvas_height.set(int(canvas.get('height', 1754)))
+        self.canvas_padding.set(int(canvas.get('padding', 64)))
+        theme = data.get('theme', DEFAULT_THEME_ID)
+        # support inline theme data
+        theme_data = data.get('theme_data')
+        if theme_data:
+            THEMES['__loaded__'] = theme_data
+            self.theme_id.set('__loaded__')
+        else:
+            self.theme_id.set(theme)
+
+        self.modules = []
+        for m in data.get('modules', []):
+            mtype = m.get('type')
+            style = m.get('style', {})
+            if mtype == 'title':
+                self.modules.append(TitleModule(title=m.get('title', ''), subtitle=m.get('subtitle', ''), align=m.get('align', 'left'), style=style))
+            elif mtype == 'summary':
+                self.modules.append(SummaryModule(title=m.get('title', ''), items=m.get('items', []), bullet=m.get('bullet', '•'), style=style))
+            elif mtype == 'stats':
+                self.modules.append(StatsModule(title=m.get('title', ''), metrics=m.get('metrics', []), columns=int(m.get('columns', 2)), style=style))
+            elif mtype == 'quote':
+                self.modules.append(QuoteModule(text=m.get('text', ''), author=m.get('author', ''), style=style))
+            elif mtype == 'rich':
+                self.modules.append(RichModule(title=m.get('title'), body=m.get('body'), items=m.get('items', []), image_path=m.get('image_path'), align=m.get('align', 'left'), style=style))
+            elif mtype == 'image':
+                self.modules.append(ImageModule(path=m.get('path', ''), fit=m.get('fit', 'cover'), height=int(m.get('height', 200)), style=style))
+        self.selected_index.set(0 if self.modules else -1)
+        self._refresh_module_list()
+        self._build_editors()
+        self._refresh_preview()
+
+    def _to_data(self) -> dict:
+        data = {
+            'canvas': {'width': self.canvas_width.get(), 'height': self.canvas_height.get(), 'dpi': 150, 'padding': self.canvas_padding.get()},
+            'theme': self.theme_id.get(),
+            'modules': []
+        }
+        # embed theme data for custom/loaded theme ids
+        tid = self.theme_id.get()
+        if tid in ('custom', '__loaded__'):
+            data['theme_data'] = THEMES.get(tid)
+        for m in self.modules:
+            if isinstance(m, TitleModule):
+                data['modules'].append({'type': 'title', 'title': m.title, 'subtitle': m.subtitle, 'align': m.align, 'style': getattr(m, 'style', {})})
+            elif isinstance(m, SummaryModule):
+                data['modules'].append({'type': 'summary', 'title': m.title, 'items': m.items, 'bullet': m.bullet, 'style': getattr(m, 'style', {})})
+            elif isinstance(m, StatsModule):
+                data['modules'].append({'type': 'stats', 'title': m.title, 'metrics': m.metrics, 'columns': m.columns, 'style': getattr(m, 'style', {})})
+            elif isinstance(m, QuoteModule):
+                data['modules'].append({'type': 'quote', 'text': m.text, 'author': m.author, 'style': getattr(m, 'style', {})})
+            elif isinstance(m, RichModule):
+                data['modules'].append({'type': 'rich', 'title': m.title, 'body': m.body, 'items': m.items, 'image_path': getattr(m, 'image_path', None), 'align': m.align, 'style': getattr(m, 'style', {})})
+            elif isinstance(m, ImageModule):
+                data['modules'].append({'type': 'image', 'path': m.path, 'fit': m.fit, 'height': m.height, 'style': getattr(m, 'style', {})})
+        return data
+
+    # Style editor
+    def _open_style_editor(self, mod):
+        top = tk.Toplevel(self.root)
+        top.title(f"样式：{getattr(mod, 'name', mod.__class__.__name__)}")
+        s = dict(getattr(mod, 'style', {}))
+
+        def pick_color(label, key):
+            c = colorchooser.askcolor(title=label)
+            if c and c[1]:
+                s[key] = c[1]
+                refresh()
+
+        def toggle_gradient():
+            if 'bg_gradient' in s and s['bg_gradient']:
+                s['bg_gradient'] = None
+            else:
+                s['bg_gradient'] = {'start': '#FFDEE9', 'end': '#B5FFFC', 'angle': 90}
+            refresh()
+
+        def angle_changed(*_):
+            try:
+                ang = int(angle_var.get())
+            except Exception:
+                ang = 90
+            if s.get('bg_gradient'):
+                s['bg_gradient']['angle'] = max(0, min(360, ang))
+
+        ttk.Button(top, text="文本颜色", command=lambda: pick_color('文本颜色', 'text_color')).pack(fill=tk.X)
+        ttk.Button(top, text="强调色", command=lambda: pick_color('强调色', 'accent_color')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="卡片底色", command=lambda: pick_color('卡片底色', 'bg_color')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="切换渐变底色", command=toggle_gradient).pack(fill=tk.X, pady=(4, 0))
+        def pick_grad(which: str):
+            if not s.get('bg_gradient'):
+                messagebox.showinfo('渐变', '请先开启渐变底色')
+                return
+            c = colorchooser.askcolor(title=f"选择渐变{which}色")
+            if c and c[1]:
+                s['bg_gradient'][which] = c[1]
+                refresh()
+        ttk.Button(top, text="渐变起始色", command=lambda: pick_grad('start')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="渐变结束色", command=lambda: pick_grad('end')).pack(fill=tk.X, pady=(4, 0))
+        angle_var = tk.IntVar(value=int(((s.get('bg_gradient') or {}).get('angle', 90))))
+        ttk.Label(top, text="渐变角度(0/90)").pack(anchor='w', pady=(6, 0))
+        ttk.Spinbox(top, from_=0, to=360, textvariable=angle_var, command=angle_changed).pack(fill=tk.X)
+
+        def refresh():
+            pass  # placeholder for live preview inside dialog
+
+        def apply_and_close():
+            mod.style = s
+            top.destroy()
+            self._refresh_preview()
+
+        ttk.Button(top, text="应用", command=apply_and_close).pack(fill=tk.X, pady=(8, 0))
+
+    # Theme editor
+    def _open_theme_editor(self):
+        top = tk.Toplevel(self.root)
+        top.title("主题调色板")
+        theme_id = self.theme_id.get()
+        theme = dict(THEMES.get(theme_id, THEMES[DEFAULT_THEME_ID]))
+        pal = dict(theme.get('palette', {}))
+        bg_grad = dict(theme.get('background_gradient') or {}) if theme.get('background_gradient') else None
+
+        def pick_palette(key, label):
+            c = colorchooser.askcolor(title=f"选择 {label}")
+            if c and c[1]:
+                pal[key] = c[1]
+                refresh()
+
+        ttk.Button(top, text="背景纯色", command=lambda: pick_palette('background', '背景色')).pack(fill=tk.X)
+        ttk.Button(top, text="文本颜色", command=lambda: pick_palette('text', '文本颜色')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="主色", command=lambda: pick_palette('primary', '主色')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="强调色", command=lambda: pick_palette('accent', '强调色')).pack(fill=tk.X, pady=(4, 0))
+
+        def toggle_bg_gradient():
+            nonlocal bg_grad
+            if bg_grad:
+                bg_grad = None
+            else:
+                bg_grad = {'start': pal.get('background', '#ffffff'), 'end': '#eaeaea', 'angle': 90}
+            refresh()
+
+        ttk.Button(top, text="切换背景渐变", command=toggle_bg_gradient).pack(fill=tk.X, pady=(4, 0))
+        ang_var = tk.IntVar(value=int((bg_grad or {}).get('angle', 90)))
+        ttk.Label(top, text="背景渐变角度(0/90)").pack(anchor='w', pady=(6, 0))
+        ttk.Spinbox(top, from_=0, to=360, textvariable=ang_var).pack(fill=tk.X)
+
+        def refresh():
+            pass
+
+        def apply_and_close():
+            if 'custom' not in THEMES:
+                THEMES['custom'] = dict(THEMES[DEFAULT_THEME_ID])
+            THEMES['custom']['palette'] = pal
+            if bg_grad:
+                THEMES['custom']['background_gradient'] = {'start': bg_grad['start'], 'end': bg_grad['end'], 'angle': int(ang_var.get())}
+            else:
+                THEMES['custom'].pop('background_gradient', None)
+            self.theme_id.set('custom')
+            top.destroy()
+            self._refresh_preview()
+
+        ttk.Button(top, text="应用", command=apply_and_close).pack(fill=tk.X, pady=(8, 0))
+
+    def _choose_image(self, var: tk.StringVar):
+        p = filedialog.askopenfilename(filetypes=[("Images", "*.png;*.jpg;*.jpeg;*.webp;*.gif")])
+        if p:
+            var.set(p)

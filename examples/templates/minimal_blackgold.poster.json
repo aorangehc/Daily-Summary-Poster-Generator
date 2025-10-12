@@ -1,0 +1,10 @@
+{
+  "canvas": { "width": 1240, "height": 1754, "dpi": 150, "padding": 64 },
+  "theme": "black_gold",
+  "modules": [
+    { "type": "title", "title": "今日总结", "subtitle": "2025-06-01", "align": "left", "style": { "bg_color": "#141414" } },
+    { "type": "summary", "title": "今日完成", "items": ["需求评审 ✅", "修复缺陷 3 个", "阅读 30min 📖"], "bullet": "•", "style": { "bg_color": "#141414" } },
+    { "type": "quote", "text": "日日精进，久久为功。", "author": "——", "style": { "bg_color": "#141414" } }
+  ]
+}
+
