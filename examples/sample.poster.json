@@ -1,0 +1,14 @@
+{
+  "canvas": { "width": 1240, "height": 1754, "dpi": 150, "padding": 64 },
+  "theme": "black_gold",
+  "modules": [
+    { "type": "title", "title": "今日总结", "subtitle": "2025-06-01", "align": "left" },
+    { "type": "summary", "items": ["完成海报生成器设计", "实现模块化布局", "编写 README"], "bullet": "•" },
+    { "type": "stats", "title": "今日数据", "metrics": [
+        { "label": "番茄", "value": "6" },
+        { "label": "步数", "value": "8123" }
+      ], "columns": 2 },
+    { "type": "quote", "text": "不积跬步，无以至千里。", "author": "荀子" }
+  ]
+}
+
