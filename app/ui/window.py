@@ -1,22 +1,23 @@
-import json
 import os
+import json
+import hashlib
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, colorchooser
 from typing import List
 
-from core.renderer import render_poster
-from core.theme import THEMES, DEFAULT_THEME_ID
-from core import storage
-from modules.title import TitleModule
-from modules.summary import SummaryModule
-from modules.stats import StatsModule
-from modules.quote import QuoteModule
-from modules.rich import RichModule
-from modules.image import ImageModule
+from app.core.renderer import render_poster
+from app.core.theme import THEMES, DEFAULT_THEME_ID
+from app.core import storage
+from app.modules.title import TitleModule
+from app.modules.summary import SummaryModule
+from app.modules.stats import StatsModule
+from app.modules.quote import QuoteModule
+from app.modules.rich import RichModule
+from app.modules.image import ImageModule
 
 try:
     from PIL import ImageTk
-except Exception:  # pragma: no cover
+except Exception:
     ImageTk = None
 
 
@@ -24,14 +25,18 @@ class AppWindow:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("每日总结海报生成器")
-        self.root.geometry("1200x780")
+        self.root.geometry("1400x900")
+        self.root.minsize(1200, 800)
 
         # State
         self.canvas_width = tk.IntVar(value=1240)
         self.canvas_height = tk.IntVar(value=1754)
         self.canvas_padding = tk.IntVar(value=64)
+        self.canvas_dpi = tk.IntVar(value=150)
         self.scale = tk.DoubleVar(value=1.0)
         self.theme_id = tk.StringVar(value=DEFAULT_THEME_ID)
+        self.bg_color = tk.StringVar(value="")
+        self.bg_gradient: dict | None = None
 
         self.modules: List[object] = [
             TitleModule(title="今日总结", subtitle="2025-06-01", align="left"),
@@ -66,12 +71,16 @@ class AppWindow:
         menubar.add_cascade(label="主题", menu=theme_menu)
         self.root.config(menu=menubar)
 
-        self.root.columnconfigure(0, weight=0)
+        self.root.columnconfigure(0, weight=0, minsize=450)
         self.root.columnconfigure(1, weight=1)
         self.root.rowconfigure(0, weight=1)
 
-        control_frame = ttk.Frame(self.root, padding=10)
-        control_frame.grid(row=0, column=0, sticky="nsw")
+        # Left scrollable panel
+        self.left_panel = _ScrollableFrame(self.root, padding=10)
+        # Ensure left panel has visible width
+        self.left_panel.configure(width=450)
+        self.left_panel.grid(row=0, column=0, sticky="nsew")
+        control_frame = self.left_panel.body
         control_frame.columnconfigure(0, weight=1)
 
         # Canvas section
@@ -88,12 +97,20 @@ class AppWindow:
         ttk.Label(canvas_box, text="边距").grid(row=2, column=0, sticky="w")
         ttk.Entry(canvas_box, textvariable=self.canvas_padding, width=10).grid(row=2, column=1, sticky="e")
         ttk.Label(canvas_box, text="主题").grid(row=3, column=0, sticky="w")
-        theme_cb = ttk.Combobox(canvas_box, textvariable=self.theme_id, values=list(THEMES.keys()), state="readonly")
-        theme_cb.grid(row=3, column=1, sticky="ew")
+        self.theme_cb = ttk.Combobox(canvas_box, textvariable=self.theme_id, values=list(THEMES.keys()), state="readonly")
+        self.theme_cb.grid(row=3, column=1, sticky="ew")
         ttk.Label(canvas_box, text="导出倍率").grid(row=4, column=0, sticky="w")
         ttk.Entry(canvas_box, textvariable=self.scale, width=10).grid(row=4, column=1, sticky="e")
+        # Background override controls
+        ttk.Label(canvas_box, text="背景颜色").grid(row=5, column=0, sticky="w")
+        bg_row = ttk.Frame(canvas_box)
+        bg_row.grid(row=5, column=1, sticky="ew")
+        ttk.Entry(bg_row, textvariable=self.bg_color).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(bg_row, text="选择", command=self._pick_bg_color).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(bg_row, text="清除", command=lambda: self.bg_color.set("")).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(canvas_box, text="背景渐变...", command=self._open_bg_editor).grid(row=6, column=0, columnspan=2, sticky="ew", pady=(6, 0))
 
-        ttk.Button(canvas_box, text="应用设置", command=self._on_apply_settings).grid(row=5, column=0, columnspan=2, sticky="ew", pady=(6, 0))
+        ttk.Button(canvas_box, text="应用设置", command=self._on_apply_settings).grid(row=7, column=0, columnspan=2, sticky="ew", pady=(6, 0))
 
         # Modules section
         ttk.Label(control_frame, text="模块").grid(row=2, column=0, sticky="w")
@@ -128,20 +145,26 @@ class AppWindow:
         self._build_editors()
 
         # Right preview
-        right = ttk.Frame(self.root, padding=10)
-        right.grid(row=0, column=1, sticky="nsew")
-        right.columnconfigure(0, weight=1)
-        right.rowconfigure(0, weight=1)
+        self.right = ttk.Frame(self.root, padding=10)
+        self.right.grid(row=0, column=1, sticky="nsew")
+        self.right.columnconfigure(0, weight=1)
+        self.right.rowconfigure(0, weight=1)
 
-        self.preview_label = ttk.Label(right)
+        self.preview_label = ttk.Label(self.right)
         self.preview_label.grid(row=0, column=0, sticky="nsew")
 
-        bottom = ttk.Frame(right)
+        bottom = ttk.Frame(self.right)
         bottom.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         ttk.Button(bottom, text="导出 PNG", command=self._export_png).pack(side=tk.LEFT)
         ttk.Button(bottom, text="保存配置", command=self._save_config).pack(side=tk.LEFT, padx=(8, 0))
 
+        # refresh initial themes list
+        self._refresh_theme_values()
+        # refresh initial module list and editors
         self._refresh_module_list()
+        self._build_editors()
+        # re-render preview when window resizes
+        self.root.bind("<Configure>", lambda e: self._refresh_preview())
 
     def _build_editors(self):
         for child in self.editor_box.winfo_children():
@@ -153,7 +176,6 @@ class AppWindow:
             return
         mod = self.modules[idx]
 
-        # common: advanced style button
         ttk.Button(self.editor_box, text="高级样式...", command=lambda m=mod: self._open_style_editor(m)).pack(fill=tk.X, pady=(0, 8))
 
         if isinstance(mod, TitleModule):
@@ -176,10 +198,8 @@ class AppWindow:
 
         ttk.Label(self.editor_box, text="主标题").pack(anchor="w")
         ttk.Entry(self.editor_box, textvariable=title_var).pack(fill=tk.X)
-
         ttk.Label(self.editor_box, text="副标题/日期").pack(anchor="w", pady=(6, 0))
         ttk.Entry(self.editor_box, textvariable=sub_var).pack(fill=tk.X)
-
         ttk.Label(self.editor_box, text="对齐").pack(anchor="w", pady=(6, 0))
         align_frame = ttk.Frame(self.editor_box)
         align_frame.pack(anchor="w")
@@ -265,7 +285,8 @@ class AppWindow:
         ttk.Label(self.editor_box, text="列表（每行一项）").pack(anchor="w", pady=(6, 0))
         items_text.pack(fill=tk.BOTH)
         ttk.Label(self.editor_box, text="对齐").pack(anchor="w", pady=(6, 0))
-        af = ttk.Frame(self.editor_box); af.pack(anchor="w")
+        af = ttk.Frame(self.editor_box)
+        af.pack(anchor="w")
         ttk.Radiobutton(af, text="左对齐", variable=align_var, value="left").pack(side=tk.LEFT)
         ttk.Radiobutton(af, text="居中", variable=align_var, value="center").pack(side=tk.LEFT)
 
@@ -282,7 +303,8 @@ class AppWindow:
         path_var = tk.StringVar(value=mod.path)
         fit_var = tk.StringVar(value=mod.fit)
         h_var = tk.IntVar(value=mod.height)
-        row = ttk.Frame(self.editor_box); row.pack(fill=tk.X)
+        row = ttk.Frame(self.editor_box)
+        row.pack(fill=tk.X)
         ttk.Entry(row, textvariable=path_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(row, text="选择图片", command=lambda: self._choose_image(path_var)).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Label(self.editor_box, text="填充方式").pack(anchor="w", pady=(6, 0))
@@ -372,17 +394,23 @@ class AppWindow:
                 height=self.canvas_height.get(),
                 padding=self.canvas_padding.get(),
                 scale=1.0,
+                bg_color_override=(self.bg_color.get() or None),
+                bg_gradient_override=self.bg_gradient,
             )
-            # Fit to preview width ~ 700px
-            target_w = 700
-            ratio = target_w / img.width
-            preview_img = img.resize((int(img.width * ratio), int(img.height * ratio)))
+            # Fit to preview container width, but not enlarge
             if ImageTk is None:
                 return
+            # compute available width in right panel
+            try:
+                avail = max(300, self.right.winfo_width() - 20)
+            except Exception:
+                avail = 700
+            target_w = avail
+            ratio = min(target_w / img.width, 1.0)
+            preview_img = img if ratio >= 1.0 else img.resize((int(img.width * ratio), int(img.height * ratio)))
             self._preview_photo = ImageTk.PhotoImage(preview_img)
             self.preview_label.configure(image=self._preview_photo)
         except Exception as e:
-            # soft-fail to avoid UI crash
             self.preview_label.configure(text=f"预览出错: {e}")
 
     def _export_png(self):
@@ -392,13 +420,20 @@ class AppWindow:
         if not path:
             return
         try:
+            try:
+                scale_val = float(self.scale.get())
+            except Exception:
+                scale_val = 1.0
+            scale_val = max(1.0, scale_val)
             img = render_poster(
                 modules=self.modules,
                 theme_id=self.theme_id.get(),
                 width=self.canvas_width.get(),
                 height=self.canvas_height.get(),
                 padding=self.canvas_padding.get(),
-                scale=max(1.0, float(self.scale.get() or 1.0)),
+                scale=scale_val,
+                bg_color_override=(self.bg_color.get() or None),
+                bg_gradient_override=self.bg_gradient,
             )
             img.save(path)
             messagebox.showinfo("导出成功", f"已导出到:\n{path}")
@@ -412,10 +447,12 @@ class AppWindow:
         self.canvas_width.set(1240)
         self.canvas_height.set(1754)
         self.canvas_padding.set(64)
+        self.canvas_dpi.set(150)
         self.scale.set(1.0)
         self.current_path = None
         self._refresh_module_list()
         self._build_editors()
+        self._refresh_theme_values()
         self._refresh_preview()
 
     def _open_config(self):
@@ -447,7 +484,6 @@ class AppWindow:
         self._save_config()
 
     def _new_from_template(self):
-        # simple chooser: list files under examples/templates
         base = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'examples', 'templates')
         base = os.path.abspath(base)
         if not os.path.isdir(base):
@@ -457,7 +493,6 @@ class AppWindow:
         if not files:
             messagebox.showinfo("模板", "模板目录为空")
             return
-        # quick select using simple listbox popup
         top = tk.Toplevel(self.root)
         top.title("选择模板")
         lb = tk.Listbox(top, width=50, height=8)
@@ -481,19 +516,32 @@ class AppWindow:
 
         ttk.Button(top, text="使用此模板", command=use_sel).pack(fill=tk.X)
 
+    def _refresh_theme_values(self):
+        vals = list(THEMES.keys())
+        self.theme_cb.configure(values=vals)
+        if self.theme_id.get() not in vals:
+            self.theme_id.set(DEFAULT_THEME_ID)
+
     def _load_from_data(self, data: dict):
         canvas = data.get('canvas', {})
         self.canvas_width.set(int(canvas.get('width', 1240)))
         self.canvas_height.set(int(canvas.get('height', 1754)))
         self.canvas_padding.set(int(canvas.get('padding', 64)))
+        self.canvas_dpi.set(int(canvas.get('dpi', 150)))
+        self.bg_color.set(str(canvas.get('bg_color', '')))
+        self.bg_gradient = canvas.get('bg_gradient') or None
+
         theme = data.get('theme', DEFAULT_THEME_ID)
-        # support inline theme data
         theme_data = data.get('theme_data')
         if theme_data:
-            THEMES['__loaded__'] = theme_data
-            self.theme_id.set('__loaded__')
+            # stable unique id for loaded theme
+            digest = hashlib.md5(json.dumps(theme_data, sort_keys=True, ensure_ascii=False).encode('utf-8')).hexdigest()[:8]
+            tid = f"loaded-{digest}"
+            THEMES[tid] = theme_data
+            self.theme_id.set(tid)
         else:
             self.theme_id.set(theme)
+        self._refresh_theme_values()
 
         self.modules = []
         for m in data.get('modules', []):
@@ -518,13 +566,19 @@ class AppWindow:
 
     def _to_data(self) -> dict:
         data = {
-            'canvas': {'width': self.canvas_width.get(), 'height': self.canvas_height.get(), 'dpi': 150, 'padding': self.canvas_padding.get()},
+            'canvas': {
+                'width': self.canvas_width.get(),
+                'height': self.canvas_height.get(),
+                'dpi': self.canvas_dpi.get(),
+                'padding': self.canvas_padding.get(),
+                'bg_color': (self.bg_color.get() or None),
+                'bg_gradient': self.bg_gradient,
+            },
             'theme': self.theme_id.get(),
             'modules': []
         }
-        # embed theme data for custom/loaded theme ids
         tid = self.theme_id.get()
-        if tid in ('custom', '__loaded__'):
+        if tid in ('custom',) or tid.startswith('loaded-'):
             data['theme_data'] = THEMES.get(tid)
         for m in self.modules:
             if isinstance(m, TitleModule):
@@ -560,18 +614,6 @@ class AppWindow:
                 s['bg_gradient'] = {'start': '#FFDEE9', 'end': '#B5FFFC', 'angle': 90}
             refresh()
 
-        def angle_changed(*_):
-            try:
-                ang = int(angle_var.get())
-            except Exception:
-                ang = 90
-            if s.get('bg_gradient'):
-                s['bg_gradient']['angle'] = max(0, min(360, ang))
-
-        ttk.Button(top, text="文本颜色", command=lambda: pick_color('文本颜色', 'text_color')).pack(fill=tk.X)
-        ttk.Button(top, text="强调色", command=lambda: pick_color('强调色', 'accent_color')).pack(fill=tk.X, pady=(4, 0))
-        ttk.Button(top, text="卡片底色", command=lambda: pick_color('卡片底色', 'bg_color')).pack(fill=tk.X, pady=(4, 0))
-        ttk.Button(top, text="切换渐变底色", command=toggle_gradient).pack(fill=tk.X, pady=(4, 0))
         def pick_grad(which: str):
             if not s.get('bg_gradient'):
                 messagebox.showinfo('渐变', '请先开启渐变底色')
@@ -580,23 +622,38 @@ class AppWindow:
             if c and c[1]:
                 s['bg_gradient'][which] = c[1]
                 refresh()
+
+        ttk.Button(top, text="文本颜色", command=lambda: pick_color('文本颜色', 'text_color')).pack(fill=tk.X)
+        ttk.Button(top, text="强调色", command=lambda: pick_color('强调色', 'accent_color')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="卡片底色", command=lambda: pick_color('卡片底色', 'bg_color')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="切换渐变底色", command=toggle_gradient).pack(fill=tk.X, pady=(4, 0))
         ttk.Button(top, text="渐变起始色", command=lambda: pick_grad('start')).pack(fill=tk.X, pady=(4, 0))
         ttk.Button(top, text="渐变结束色", command=lambda: pick_grad('end')).pack(fill=tk.X, pady=(4, 0))
-        angle_var = tk.IntVar(value=int(((s.get('bg_gradient') or {}).get('angle', 90))))
-        ttk.Label(top, text="渐变角度(0/90)").pack(anchor='w', pady=(6, 0))
-        ttk.Spinbox(top, from_=0, to=360, textvariable=angle_var, command=angle_changed).pack(fill=tk.X)
+
+        # radius & padding
+        rp = ttk.Frame(top)
+        rp.pack(fill=tk.X, pady=(6, 0))
+        ttk.Label(rp, text="圆角").pack(side=tk.LEFT)
+        radius_var = tk.IntVar(value=int(s.get('radius', 20)))
+        ttk.Spinbox(rp, from_=0, to=64, textvariable=radius_var, width=6).pack(side=tk.LEFT, padx=(6, 12))
+        ttk.Label(rp, text="内边距").pack(side=tk.LEFT)
+        padding_var = tk.IntVar(value=int(s.get('padding', 24)))
+        ttk.Spinbox(rp, from_=8, to=96, textvariable=padding_var, width=6).pack(side=tk.LEFT, padx=(6, 0))
 
         def refresh():
-            pass  # placeholder for live preview inside dialog
+            # Apply current style changes to the module and refresh preview
+            mod.style = s.copy()
+            self._refresh_preview()
 
         def apply_and_close():
+            s['radius'] = int(radius_var.get())
+            s['padding'] = int(padding_var.get())
             mod.style = s
             top.destroy()
             self._refresh_preview()
 
         ttk.Button(top, text="应用", command=apply_and_close).pack(fill=tk.X, pady=(8, 0))
 
-    # Theme editor
     def _open_theme_editor(self):
         top = tk.Toplevel(self.root)
         top.title("主题调色板")
@@ -641,6 +698,7 @@ class AppWindow:
             else:
                 THEMES['custom'].pop('background_gradient', None)
             self.theme_id.set('custom')
+            self._refresh_theme_values()
             top.destroy()
             self._refresh_preview()
 
@@ -650,3 +708,95 @@ class AppWindow:
         p = filedialog.askopenfilename(filetypes=[("Images", "*.png;*.jpg;*.jpeg;*.webp;*.gif")])
         if p:
             var.set(p)
+
+    def _pick_bg_color(self):
+        c = colorchooser.askcolor(title="选择背景颜色")
+        if c and c[1]:
+            self.bg_color.set(c[1])
+            self._refresh_preview()
+
+    def _open_bg_editor(self):
+        top = tk.Toplevel(self.root)
+        top.title("背景渐变设置")
+        grad = dict(self.bg_gradient or {}) if self.bg_gradient else None
+
+        def toggle_grad():
+            nonlocal grad
+            if grad:
+                grad = None
+            else:
+                grad = {'start': self.bg_color.get() or '#ffffff', 'end': '#eaeaea', 'angle': 90}
+
+        def pick(which: str):
+            nonlocal grad
+            if not grad:
+                messagebox.showinfo('渐变', '请先开启渐变后再选择颜色')
+                return
+            c = colorchooser.askcolor(title=f"选择{which}色")
+            if c and c[1]:
+                grad[which] = c[1]
+
+        ttk.Button(top, text="切换渐变开关", command=toggle_grad).pack(fill=tk.X)
+        ttk.Button(top, text="选择起始色", command=lambda: pick('start')).pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(top, text="选择结束色", command=lambda: pick('end')).pack(fill=tk.X, pady=(4, 0))
+        ang_var = tk.IntVar(value=int((grad or {}).get('angle', 90)))
+        ttk.Label(top, text="角度(0/90)").pack(anchor='w', pady=(6, 0))
+        ttk.Spinbox(top, from_=0, to=360, textvariable=ang_var).pack(fill=tk.X)
+
+        def apply_and_close():
+            if grad:
+                grad['angle'] = int(ang_var.get())
+            self.bg_gradient = grad
+            top.destroy()
+            self._refresh_preview()
+
+        ttk.Button(top, text="应用", command=apply_and_close).pack(fill=tk.X, pady=(8, 0))
+
+
+class _ScrollableFrame(ttk.Frame):
+    def __init__(self, parent, padding=0, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.grid_propagate(False)
+        # Canvas + Scrollbar + inner body frame
+        self.canvas = tk.Canvas(self, borderwidth=0, highlightthickness=0)
+        self.vscroll = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vscroll.set)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.vscroll.grid(row=0, column=1, sticky="ns")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        self.body = ttk.Frame(self.canvas, padding=padding)
+        self.body_id = self.canvas.create_window((0, 0), window=self.body, anchor="nw")
+
+        # Update scrollregion when body changes
+        def _on_body_configure(_event=None):
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            # Keep the body width same as canvas width, but ensure minimum width
+            canvas_width = self.canvas.winfo_width()
+            if canvas_width > 1:  # Only update if canvas has been properly sized
+                self.canvas.itemconfigure(self.body_id, width=canvas_width)
+
+        def _on_canvas_configure(_event=None):
+            # Update body width when canvas is resized
+            canvas_width = self.canvas.winfo_width()
+            if canvas_width > 1:
+                self.canvas.itemconfigure(self.body_id, width=canvas_width)
+
+        self.body.bind("<Configure>", _on_body_configure)
+        self.canvas.bind("<Configure>", _on_canvas_configure)
+
+        # Handle mouse wheel when cursor over the frame
+        self.body.bind("<Enter>", lambda e: self._bind_mousewheel(True))
+        self.body.bind("<Leave>", lambda e: self._bind_mousewheel(False))
+
+    def _bind_mousewheel(self, bind: bool):
+        if bind:
+            self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        else:
+            self.canvas.unbind_all("<MouseWheel>")
+
+    def _on_mousewheel(self, event):
+        # Windows uses delta/120 units
+        delta = int(-1 * (event.delta / 120))
+        self.canvas.yview_scroll(delta, "units")

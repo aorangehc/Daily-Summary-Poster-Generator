@@ -1,23 +1,15 @@
 from typing import List, Tuple
 from PIL import Image, ImageDraw
 
-from core.theme import THEMES, DEFAULT_THEME_ID
-from core.fonts import get_font
-from modules.base import BaseModule
-from modules.title import TitleModule
-from modules.summary import SummaryModule
-from modules.stats import StatsModule
-from modules.quote import QuoteModule
-from modules.rich import RichModule
-from modules.image import ImageModule
-
-
-def _rounded_rect(draw: ImageDraw.ImageDraw, xy, radius: int, fill=None, outline=None, width: int = 1):
-    try:
-        draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
-    except Exception:
-        # fallback: simple rectangle
-        draw.rectangle(xy, fill=fill, outline=outline, width=width)
+from app.core.theme import THEMES, DEFAULT_THEME_ID
+from app.core.fonts import get_font
+from app.modules.base import BaseModule
+from app.modules.title import TitleModule
+from app.modules.summary import SummaryModule
+from app.modules.stats import StatsModule
+from app.modules.quote import QuoteModule
+from app.modules.rich import RichModule
+from app.modules.image import ImageModule
 
 
 def _text_wh(draw: ImageDraw.ImageDraw, text: str, font):
@@ -28,38 +20,6 @@ def _text_wh(draw: ImageDraw.ImageDraw, text: str, font):
 def _text_w(draw: ImageDraw.ImageDraw, text: str, font):
     w, _ = _text_wh(draw, text, font)
     return w
-
-
-def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int):
-    if not text:
-        return []
-    lines = []
-    line = ""
-    # Simple mixed CJK/latin wrap: prefer split on whitespace, else char-wise
-    for token in _tokenize_text(text):
-        test = line + token
-        w = _text_w(draw, test, font)
-        if w <= max_width:
-            line = test
-        else:
-            if line:
-                lines.append(line.rstrip())
-            # if single token already too long, force split by char
-            if _text_w(draw, token, font) > max_width:
-                for ch in token:
-                    test2 = ("" if not line else line) + ch
-                    w2 = _text_w(draw, test2, font)
-                    if w2 <= max_width:
-                        line = test2
-                    else:
-                        if line:
-                            lines.append(line)
-                        line = ch
-            else:
-                line = token
-    if line:
-        lines.append(line.rstrip())
-    return lines
 
 
 def _tokenize_text(text: str):
@@ -95,6 +55,36 @@ def _is_cjk(char: str) -> bool:
     )
 
 
+def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int):
+    if not text:
+        return []
+    lines = []
+    line = ""
+    for token in _tokenize_text(text):
+        test = line + token
+        w = _text_w(draw, test, font)
+        if w <= max_width:
+            line = test
+        else:
+            if line:
+                lines.append(line.rstrip())
+            if _text_w(draw, token, font) > max_width:
+                for ch in token:
+                    test2 = ("" if not line else line) + ch
+                    w2 = _text_w(draw, test2, font)
+                    if w2 <= max_width:
+                        line = test2
+                    else:
+                        if line:
+                            lines.append(line)
+                        line = ch
+            else:
+                line = token
+    if line:
+        lines.append(line.rstrip())
+    return lines
+
+
 def render_poster(
     modules: List[BaseModule],
     theme_id: str = DEFAULT_THEME_ID,
@@ -102,6 +92,8 @@ def render_poster(
     height: int = 1754,
     padding: int = 64,
     scale: float = 1.0,
+    bg_color_override: str | None = None,
+    bg_gradient_override: dict | None = None,
 ):
     theme = THEMES.get(theme_id, THEMES[DEFAULT_THEME_ID])
     pal = theme["palette"]
@@ -109,23 +101,20 @@ def render_poster(
 
     sw, sh = int(width * scale), int(height * scale)
     pad = int(padding * scale)
-    img = Image.new("RGB", (sw, sh), pal.get("background", "#ffffff"))
-    # Background gradient (optional)
-    bg_grad = theme.get("background_gradient")
+    img = Image.new("RGB", (sw, sh), (bg_color_override or pal.get("background", "#ffffff")))
+    # background gradient
+    bg_grad = bg_gradient_override if bg_gradient_override else theme.get("background_gradient")
     if bg_grad:
         _fill_gradient(img, (0, 0, sw, sh), bg_grad.get("start"), bg_grad.get("end"), int(bg_grad.get("angle", 90)))
     draw = ImageDraw.Draw(img)
 
     x0, y = pad, pad
     content_w = sw - 2 * pad
-    gap = int(tok["gap"] * scale)
-    radius = int(tok["radius"] * scale)
-    card_pad = int(tok["card_padding"] * scale)
+    gap = int(tok.get("gap", 24) * scale)
+    radius = int(tok.get("radius", 20) * scale)
+    card_pad = int(tok.get("card_padding", 24) * scale)
 
-    # Title area top spacing
     for m in modules:
-        # Module card
-        # card background
         card_h = _render_module(
             img=img,
             draw=draw,
@@ -142,21 +131,23 @@ def render_poster(
     return img
 
 
-def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModule, pal: dict, tok: dict, scale: float, area: Tuple[int, int, int, int], radius: int, card_pad: int) -> int:
-    x1, y1, x2, y2 = area
+def _render_module(
+    img: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    module: BaseModule,
+    pal: dict,
+    tok: dict,
+    scale: float,
+    area: Tuple[int, int, int, int],
+    radius: int,
+    card_pad: int,
+) -> int:
+    x1, y1, x2, _y2 = area
     box_w = x2 - x1
-    # Temporary large height; we will compute content height and then draw card
-    inner_x1 = x1 + card_pad
-    inner_y = y1 + card_pad
-    inner_w = box_w - 2 * card_pad
 
-    # collect drawing calls on a temporary overlay to measure height accurately
-    lines = []  # (callable)
-    text_color = pal.get("text", "#222222")
-
-    # Resolve style overrides
+    # style overrides
     style = getattr(module, "style", {}) or {}
-    card_fill = style.get("bg_color") or pal.get("card")
+    card_fill = style.get("bg_color") or pal.get("card", "#ffffff")
     card_outline = pal.get("card_border")
     card_radius = int(style.get("radius", radius))
     card_padding = int(style.get("padding", card_pad))
@@ -167,60 +158,49 @@ def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModu
     accent_color = style.get("accent_color") or pal.get("primary", text_color)
     card_gradient = style.get("bg_gradient")  # {start,end,angle}
 
-    # Title Module
+    # Title
     if isinstance(module, TitleModule):
         title_font = get_font(int(42 * scale), bold=True)
         sub_font = get_font(int(20 * scale))
         align = module.align or "left"
-        # wrap title
         title_lines = _wrap_text(draw, module.title or "", title_font, inner_w)
         sub_lines = _wrap_text(draw, module.subtitle or "", sub_font, inner_w)
         lh_title = title_font.size + int(10 * scale)
         lh_sub = sub_font.size + int(6 * scale)
         h = card_padding + len(title_lines) * lh_title + (int(8 * scale) if sub_lines else 0) + len(sub_lines) * lh_sub + card_padding
-
-        # draw card (gradient or solid)
         _draw_card(img, (x1, y1, x2, y1 + h), card_radius, card_fill, card_outline, card_gradient)
         cy = inner_y
         for line in title_lines:
             w = _text_w(draw, line, title_font)
-            if align == "center":
-                cx = inner_x1 + (inner_w - w) // 2
-            else:
-                cx = inner_x1
+            cx = inner_x1 + (inner_w - w) // 2 if align == "center" else inner_x1
             draw.text((cx, cy), line, fill=text_color, font=title_font)
             cy += lh_title
         if sub_lines:
             cy += int(8 * scale)
             for line in sub_lines:
                 w = _text_w(draw, line, sub_font)
-                cx = inner_x1 if align != "center" else inner_x1 + (inner_w - w) // 2
+                cx = inner_x1 + (inner_w - w) // 2 if align == "center" else inner_x1
                 draw.text((cx, cy), line, fill=pal.get("muted", text_color), font=sub_font)
                 cy += lh_sub
         return h
 
-    # Summary Module
+    # Summary
     if isinstance(module, SummaryModule):
         title_font = get_font(int(22 * scale), bold=True)
         body_font = get_font(int(18 * scale))
         bullet_gap = int(8 * scale)
         line_gap = int(8 * scale)
-        header_h = 0
-        if module.title:
-            header_h = title_font.size + line_gap
-        # Estimate height
+        header_h = title_font.size + line_gap if getattr(module, "title", None) else 0
         y_cursor = inner_y + header_h
         for item in module.items:
-            # bullet + text
             bullet_w = _text_w(draw, module.bullet or "•", body_font)
             available_w = inner_w - bullet_w - bullet_gap
-            for _line in _wrap_text(draw, str(item), body_font, available_w):
+            for _ in _wrap_text(draw, str(item), body_font, available_w):
                 y_cursor += body_font.size + line_gap
         h = (y_cursor - y1) + card_padding
-
         _draw_card(img, (x1, y1, x2, y1 + h), card_radius, card_fill, card_outline, card_gradient)
         cy = inner_y
-        if module.title:
+        if getattr(module, "title", None):
             draw.text((inner_x1, cy), module.title, fill=text_color, font=title_font)
             cy += header_h
         for item in module.items:
@@ -234,7 +214,7 @@ def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModu
                 cy += body_font.size + line_gap
         return h
 
-    # Stats Module
+    # Stats
     if isinstance(module, StatsModule):
         title_font = get_font(int(22 * scale), bold=True)
         label_font = get_font(int(14 * scale))
@@ -242,38 +222,31 @@ def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModu
         col_gap = int(16 * scale)
         row_gap = int(12 * scale)
         columns = max(1, min(4, int(module.columns or 2)))
-        header_h = 0
-        if module.title:
-            header_h = title_font.size + int(10 * scale)
+        header_h = title_font.size + int(10 * scale) if getattr(module, "title", None) else 0
         cell_w = (inner_w - (columns - 1) * col_gap) // columns
-        # one line per metric value + label
         rows = (len(module.metrics) + columns - 1) // columns
         cell_h = value_font.size + label_font.size + int(10 * scale)
         h = card_padding + header_h + rows * cell_h + (rows - 1) * row_gap + card_padding
         _draw_card(img, (x1, y1, x2, y1 + h), card_radius, card_fill, card_outline, card_gradient)
-
         cy = inner_y
-        if module.title:
+        if getattr(module, "title", None):
             draw.text((inner_x1, cy), module.title, fill=text_color, font=title_font)
             cy += header_h
-        # grid
         start_y = cy
         for idx, metric in enumerate(module.metrics):
             r = idx // columns
             c = idx % columns
             cx = inner_x1 + c * (cell_w + col_gap)
             cy = start_y + r * (cell_h + row_gap)
-            # value
             draw.text((cx, cy), str(metric.get("value", "")), fill=accent_color, font=value_font)
             cy += value_font.size + int(2 * scale)
             draw.text((cx, cy), str(metric.get("label", "")), fill=pal.get("muted", text_color), font=label_font)
         return h
 
-    # Quote Module
+    # Quote
     if isinstance(module, QuoteModule):
         quote_font = get_font(int(22 * scale))
         author_font = get_font(int(16 * scale))
-        # measure
         lines = _wrap_text(draw, module.text or "", quote_font, inner_w)
         lh = quote_font.size + int(8 * scale)
         ah = author_font.size
@@ -289,33 +262,28 @@ def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModu
             draw.text((inner_x1, cy), f"— {author}", fill=pal.get("muted", text_color), font=author_font)
         return h
 
-    # Rich Module (customizable)
+    # Rich
     if isinstance(module, RichModule):
         title_font = get_font(int(24 * scale), bold=True)
         body_font = get_font(int(18 * scale))
         line_gap = int(8 * scale)
-        header_h = 0
-        if module.title:
-            header_h = title_font.size + int(8 * scale)
-        cy = inner_y + header_h
-        # estimate body
+        align = getattr(module, 'align', 'left') or 'left'  # Get alignment setting
+        header_h = title_font.size + int(8 * scale) if module.title else 0
         h = card_padding + header_h
         if module.body:
-            for _line in _wrap_text(draw, module.body, body_font, inner_w):
+            for _ in _wrap_text(draw, module.body, body_font, inner_w):
                 h += body_font.size + line_gap
         if module.items:
             h += int(8 * scale)
             for it in module.items:
-                for _line in _wrap_text(draw, it, body_font, inner_w):
+                for _ in _wrap_text(draw, it, body_font, inner_w):
                     h += body_font.size + line_gap
-        # image height if provided
         img_h = 0
         if getattr(module, "image_path", None):
             try:
-                from PIL import Image
+                from PIL import Image as _I
 
-                im = Image.open(module.image_path)
-                # fit width, keep aspect, target height up to 240
+                im = _I.open(module.image_path)
                 max_h = int(240 * scale)
                 ratio = min(inner_w / im.width, max_h / im.height)
                 img_h = int(im.height * ratio)
@@ -326,23 +294,32 @@ def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModu
         _draw_card(img, (x1, y1, x2, y1 + h), card_radius, card_fill, card_outline, card_gradient)
         cy = inner_y
         if module.title:
-            draw.text((inner_x1, cy), module.title, fill=text_color, font=title_font)
+            # Apply alignment to title
+            title_w = _text_w(draw, module.title, title_font)
+            title_x = inner_x1 + (inner_w - title_w) // 2 if align == "center" else inner_x1
+            draw.text((title_x, cy), module.title, fill=text_color, font=title_font)
             cy += header_h
         if module.body:
             for line in _wrap_text(draw, module.body, body_font, inner_w):
-                draw.text((inner_x1, cy), line, fill=text_color, font=body_font)
+                # Apply alignment to body text
+                body_w = _text_w(draw, line, body_font)
+                body_x = inner_x1 + (inner_w - body_w) // 2 if align == "center" else inner_x1
+                draw.text((body_x, cy), line, fill=text_color, font=body_font)
                 cy += body_font.size + line_gap
         if module.items:
             cy += int(8 * scale)
             for it in module.items:
                 for line in _wrap_text(draw, it, body_font, inner_w):
-                    draw.text((inner_x1, cy), line, fill=text_color, font=body_font)
+                    # Apply alignment to list items
+                    item_w = _text_w(draw, line, body_font)
+                    item_x = inner_x1 + (inner_w - item_w) // 2 if align == "center" else inner_x1
+                    draw.text((item_x, cy), line, fill=text_color, font=body_font)
                     cy += body_font.size + line_gap
         if getattr(module, "image_path", None):
             try:
-                from PIL import Image
+                from PIL import Image as _I
 
-                im = Image.open(module.image_path).convert("RGBA")
+                im = _I.open(module.image_path).convert("RGBA")
                 ratio = min(inner_w / im.width, (img_h or 1) / im.height)
                 im = im.resize((int(im.width * ratio), int(im.height * ratio)))
                 img.paste(im, (inner_x1, cy), mask=im)
@@ -350,25 +327,21 @@ def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModu
                 pass
         return h
 
-    # Image/Sticker Module
+    # Image/Sticker
     if isinstance(module, ImageModule):
-        # reserve fixed height
         h = card_padding + module.height + card_padding
         _draw_card(img, (x1, y1, x2, y1 + h), card_radius, card_fill, card_outline, card_gradient)
         try:
-            from PIL import Image
+            from PIL import Image as _I
 
-            im = Image.open(module.path).convert("RGBA")
-            # fit by height
+            im = _I.open(module.path).convert("RGBA")
             ratio = module.height / im.height if im.height else 1
             new_w, new_h = int(im.width * ratio), int(im.height * ratio)
             if module.fit == "cover" and new_w < inner_w:
-                # scale to cover width
                 ratio = inner_w / im.width
                 new_w, new_h = int(im.width * ratio), int(im.height * ratio)
             im = im.resize((min(new_w, inner_w), min(new_h, module.height)))
             img_w, img_h = im.size
-            # center horizontally
             cx = inner_x1 + max(0, (inner_w - img_w) // 2)
             cy = inner_y + max(0, (module.height - img_h) // 2)
             img.paste(im, (cx, cy), mask=im)
@@ -376,7 +349,7 @@ def _render_module(img: Image.Image, draw: ImageDraw.ImageDraw, module: BaseModu
             pass
         return h
 
-    # default fallback: empty block height
+    # default empty block
     h = int(80 * scale)
     _draw_card(img, (x1, y1, x2, y1 + h), card_radius, card_fill, card_outline, card_gradient)
     return h
@@ -399,9 +372,7 @@ def _draw_card(img: Image.Image, rect, radius: int, fill_color: str, outline_col
         md.rounded_rectangle((0, 0, w, h), radius=radius, fill=255)
     except Exception:
         md.rectangle((0, 0, w, h), fill=255)
-    # apply
     img.paste(overlay, (x1, y1), mask)
-    # outline
     if outline_color:
         d = ImageDraw.Draw(img)
         try:
@@ -423,17 +394,17 @@ def _fill_gradient(target: Image.Image, rect, start_color: str, end_color: str, 
     dr = end[0] - start[0]
     dg = end[1] - start[1]
     db = end[2] - start[2]
+    draw = ImageDraw.Draw(base)
     if horiz:
         for x in range(w):
             t = x / max(1, w - 1)
             col = (int(start[0] + dr * t), int(start[1] + dg * t), int(start[2] + db * t), 255)
-            ImageDraw.Draw(base).line([(x, 0), (x, h)], fill=col)
+            draw.line([(x, 0), (x, h)], fill=col)
     else:
         for y in range(h):
             t = y / max(1, h - 1)
             col = (int(start[0] + dr * t), int(start[1] + dg * t), int(start[2] + db * t), 255)
-            ImageDraw.Draw(base).line([(0, y), (w, y)], fill=col)
-    # paste to target
+            draw.line([(0, y), (w, y)], fill=col)
     target.paste(base, (x1, y1))
 
 
