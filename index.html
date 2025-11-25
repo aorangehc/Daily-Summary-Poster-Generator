@@ -12,6 +12,7 @@
             --text-primary: #2d3748;
             --text-secondary: #718096;
             --font-stack: 'Nunito', 'Noto Sans SC', sans-serif;
+            --color-focus: #63b3ed;
         }
 
         * { box-sizing: border-box; outline: none; }
@@ -46,117 +47,68 @@
             width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; transition: all 0.3s; color: var(--text-primary);
             font-family: var(--font-stack);
         }
-        input[type="text"]:focus { border-color: #63b3ed; background: white; box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1); }
+        input[type="text"]:focus { border-color: var(--color-focus); background: white; box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1); }
 
         .btn {
             width: 100%; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; transition: 0.2s; font-size: 15px; font-family: var(--font-stack);
         }
-        .btn-add { background: #63b3ed; color: white; box-shadow: 0 4px 6px rgba(99, 179, 237, 0.2); }
+        .btn-add { background: var(--color-focus); color: white; box-shadow: 0 4px 6px rgba(99, 179, 237, 0.2); }
         .btn-add:hover { background: #4299e1; transform: translateY(-1px); }
         .btn-save { background: linear-gradient(135deg, #a78bfa, #f687b3); color: white; margin-top: auto; box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3); }
         .btn-save:hover { opacity: 0.95; transform: translateY(-1px); }
 
-        /* 颜色选择器 */
         .color-picker-container { display: flex; gap: 10px; margin-top: 10px; }
         .color-dot { 
             width: 32px; height: 32px; border-radius: 50%; cursor: pointer; 
-            border: 3px solid white; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: all 0.2s;
-            position: relative;
+            border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s; position: relative;
         }
         .color-dot:hover { transform: scale(1.1); }
         .color-dot.active { transform: scale(1.15); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-        .color-dot.active::after {
-            content: '✓'; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; font-weight: bold;
-        }
+        .color-dot.active::after { content: '✓'; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; font-weight: bold; }
 
-        /* --- 文本工具栏 --- */
         .tool-bar { display: flex; gap: 6px; flex-wrap: wrap;}
-        
         .tool-btn {
-            padding: 6px 8px; 
-            border: 1px solid #e2e8f0; 
-            background: white; 
-            cursor: pointer; 
-            border-radius: 6px; 
-            font-size: 13px; 
-            color: var(--text-secondary); 
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
-            min-width: 32px;
+            padding: 6px 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer; border-radius: 6px; 
+            font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; min-width: 32px;
         }
         .tool-btn:hover { border-color: #cbd5e0; background: #ebf8ff; transform: translateY(-1px);}
-        
-        .color-sq {
-            width: 14px; height: 14px; border-radius: 3px; display: inline-block;
-            border: 1px solid rgba(0,0,0,0.05);
-        }
+        .color-sq { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0,0,0,0.05); }
 
         /* --- 右侧预览区域 --- */
         .main-area {
-            flex: 1;
-            padding: 40px;
-            overflow-y: auto;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            background-image: radial-gradient(var(--bg-main) 2px, transparent 2px);
-            background-size: 20px 20px;
+            flex: 1; padding: 40px; overflow-y: auto; display: flex; justify-content: center; align-items: flex-start;
+            background-image: radial-gradient(var(--bg-main) 2px, transparent 2px); background-size: 20px 20px;
         }
 
         #capture-node {
-            width: 850px;
-            min-height: 600px;
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-            overflow: hidden;
-            position: relative;
-            border: 1px solid white;
+            width: 850px; min-height: 600px; background: white; border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); overflow: hidden; position: relative; border: 1px solid white;
         }
 
         .header {
-            background: linear-gradient(to right, #ebf4ff, #f0f5ff, #fff5f7);
-            padding: 35px 50px;
-            position: relative;
-            border-bottom: 2px dashed #e6effd;
+            background: linear-gradient(to right, #ebf4ff, #f0f5ff, #fff5f7); padding: 35px 50px; position: relative; border-bottom: 2px dashed #e6effd;
         }
-        .header::after {
-            content: ''; position: absolute; bottom: -6px; left: 50px; width: 60px; height: 6px; background: #63b3ed; border-radius: 3px; opacity: 0.3;
-        }
+        .header::after { content: ''; position: absolute; bottom: -6px; left: 50px; width: 60px; height: 6px; background: var(--color-focus); border-radius: 3px; opacity: 0.3; }
         
         .header-content { display: flex; justify-content: space-between; align-items: flex-end; }
         .header-left h1 { margin: 0; font-size: 32px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px;}
         .header-left p { margin: 12px 0 0 0; color: var(--text-secondary); font-size: 15px; font-weight: 500; }
         .header-right { text-align: right; }
         .date-badge {
-            display: inline-block; padding: 8px 16px; background: white; border: 2px solid #63b3ed; color: #63b3ed;
+            display: inline-block; padding: 8px 16px; background: white; border: 2px solid var(--color-focus); color: var(--color-focus);
             border-radius: 20px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 6px rgba(99, 179, 237, 0.15);
         }
 
-        .content-grid {
-            padding: 40px 50px;
-            column-count: 2;
-            column-gap: 35px;
-        }
+        .content-grid { padding: 40px 50px; column-count: 2; column-gap: 35px; }
 
-        /* --- 线条风卡片 --- */
         .card {
-            break-inside: avoid;
-            background: white;
-            border-radius: 18px;
-            margin-bottom: 35px;
-            position: relative;
-            transition: all 0.3s ease;
-            border: 2.5px solid var(--theme-color);
-            box-shadow: 0 8px 20px -6px var(--theme-shadow);
+            break-inside: avoid; background: white; border-radius: 18px; margin-bottom: 35px; position: relative; transition: all 0.3s ease;
+            border: 2.5px solid var(--theme-color); box-shadow: 0 8px 20px -6px var(--theme-shadow);
         }
         
         .card:hover .card-actions { opacity: 1; pointer-events: auto;}
-        .card-actions {
-            position: absolute; top: -12px; right: -12px; opacity: 0; transition: 0.3s; z-index: 5; pointer-events: none;
-        }
+        .card-actions { position: absolute; top: -12px; right: -12px; opacity: 0; transition: 0.3s; z-index: 5; pointer-events: none; }
         .btn-mini-del { 
             width: 30px; height: 30px; border-radius: 50%; background: #fed7d7; color: #c53030; border: 2px solid white;
             display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size: 14px;
@@ -164,59 +116,57 @@
         .btn-mini-del:hover { background: #f56565; color: white; transform: scale(1.1);}
 
         .card-header {
-            padding: 18px 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 800;
-            font-size: 18px;
-            color: var(--theme-color);
-            border-bottom: 1px solid #f0f4f8;
-            position: relative;
+            padding: 18px 24px; display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 18px;
+            color: var(--theme-color); border-bottom: 1px solid #f0f4f8; position: relative;
         }
-        .card-header::after {
-            content: ''; position: absolute; bottom: -1px; left: 24px; width: 30px; height: 2px; background: var(--theme-color); opacity: 0.4;
-        }
+        .card-header::after { content: ''; position: absolute; bottom: -1px; left: 24px; width: 30px; height: 2px; background: var(--theme-color); opacity: 0.4; }
         .card-icon { font-size: 22px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1)); }
         
         .card-body {
-            padding: 20px 24px 28px 24px;
-            font-size: 15px;
-            line-height: 1.85;
-            color: var(--text-primary);
-            white-space: pre-wrap;
-            font-weight: 400;
+            padding: 20px 24px 28px 24px; font-size: 15px; line-height: 1.85; color: var(--text-primary);
+            white-space: pre-wrap; font-weight: 400;
+        }
+        
+        /* --- 核心：图片样式 (Updated) --- */
+        .card-body img {
+            max-width: 100%;
+            border-radius: 8px;
+            /* 修改点：display:block + margin:auto 实现居中 */
+            display: block; 
+            margin: 10px auto; 
+            
+            cursor: default;
+            pointer-events: auto; 
+            box-sizing: border-box;
+            border: 2px solid transparent;
+            transition: box-shadow 0.2s;
+        }
+        
+        /* 图片被选中时的样式 */
+        .card-body img.img-selected {
+            border-color: var(--color-focus);
+            box-shadow: 0 0 0 4px rgba(99, 179, 237, 0.2);
         }
 
-        /* 列表样式 */
         .card-body ul, .card-body ol { margin: 8px 0; padding-left: 10px; list-style: none; }
         .card-body li { position: relative; padding-left: 18px; margin-bottom: 4px; }
-        .card-body li::before {
-            content: '•'; color: var(--theme-color); font-weight: bold; font-size: 1.4em; position: absolute; left: 0; top: -3px;
-        }
+        .card-body li::before { content: '•'; color: var(--theme-color); font-weight: bold; font-size: 1.4em; position: absolute; left: 0; top: -3px; }
         .card-body b, .card-body strong { font-weight: 700; color: #1a202c; }
         
-        /* 样式定义 */
         .hl-marker-green { background: linear-gradient(transparent 60%, rgba(79, 209, 197, 0.4) 40%); padding: 0 2px; }
         .hl-marker-yellow { background: linear-gradient(transparent 60%, rgba(246, 224, 94, 0.4) 40%); padding: 0 2px; }
         .hl-marker-pink { background: linear-gradient(transparent 60%, rgba(246, 135, 179, 0.4) 40%); padding: 0 2px; }
         .hl-marker-purple { background: linear-gradient(transparent 60%, rgba(183, 148, 244, 0.4) 40%); padding: 0 2px; }
         .hl-marker-blue { background: linear-gradient(transparent 60%, rgba(99, 179, 237, 0.4) 40%); padding: 0 2px; }
         .hl-gray-bg { background: #edf2f7; padding: 2px 6px; border-radius: 4px; color: var(--text-secondary); font-size: 0.95em;}
-        .hl-strike-red { 
-            text-decoration: line-through; text-decoration-color: #e53e3e; text-decoration-thickness: 2px;
-            color: #c53030; background: rgba(254, 215, 215, 0.3); padding: 0 2px; border-radius: 2px;
-        }
+        .hl-strike-red { text-decoration: line-through; text-decoration-color: #e53e3e; text-decoration-thickness: 2px; color: #c53030; background: rgba(254, 215, 215, 0.3); padding: 0 2px; border-radius: 2px; }
 
         [contenteditable]:hover { cursor: text; }
         [contenteditable]:focus { outline: none; }
         .header [contenteditable]:focus { background: rgba(255,255,255,0.5); border-radius: 4px; padding: 2px;}
         .card-body[contenteditable]:focus { background: #fafcff; box-shadow: inset 0 0 0 2px var(--theme-color-pale); border-radius: 8px; padding: 18px 22px 26px 22px; margin: -2px;}
 
-        .footer {
-            text-align: center; padding: 25px; color: var(--text-secondary); font-size: 13px; font-weight: 500;
-            border-top: 2px dashed #e6effd; background: #fcfdff; border-radius: 0 0 24px 24px;
-        }
+        .footer { text-align: center; padding: 25px; color: var(--text-secondary); font-size: 13px; font-weight: 500; border-top: 2px dashed #e6effd; background: #fcfdff; border-radius: 0 0 24px 24px; }
     </style>
 </head>
 <body>
@@ -238,35 +188,42 @@
         </div>
 
         <div class="control-group" style="background: #fff9f0; border-color:#feecc8;">
-            <label style="color:#b7791f">✒️ 文本编辑器 (选中文字点击)</label>
+            <label style="color:#b7791f">✒️ 编辑工具</label>
             <div class="tool-bar">
-                <button class="tool-btn" onclick="clearAllFormats()" title="清除格式/橡皮擦" style="border-color:#feb2b2; color:#c53030; font-weight:bold;">🧹</button>
+                <button class="tool-btn" onclick="clearAllFormats()" title="橡皮擦" style="border-color:#feb2b2; color:#c53030; font-weight:bold;">🧹</button>
                 <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
 
                 <button class="tool-btn" onclick="formatDoc('bold')" title="加粗"><b>B</b></button>
-                <button class="tool-btn" onclick="formatDoc('insertUnorderedList')" title="插入列表" style="width:auto; padding: 0 10px;">
+                <button class="tool-btn" onclick="formatDoc('insertUnorderedList')" title="列表" style="width:auto; padding: 0 10px;">
                     <span style="font-size:16px; line-height:1; color:#d69e2e; margin-right:4px;">•</span> 列表
                 </button>
                 
+                <button class="tool-btn" onclick="triggerImageUpload()" title="插入图片" style="border-color:#90cdf4; color:#3182ce;">
+                    <span style="font-size:16px;">🖼️</span>
+                </button>
+                <input type="file" id="img-upload" accept="image/*" style="display:none;">
+
                 <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
                 
                 <button class="tool-btn" onclick="applyClass('hl-marker-green')" title="薄荷绿"><span class="color-sq" style="background:#4fd1c5;"></span></button>
                 <button class="tool-btn" onclick="applyClass('hl-marker-yellow')" title="柠檬黄"><span class="color-sq" style="background:#f6e05e;"></span></button>
                 <button class="tool-btn" onclick="applyClass('hl-marker-pink')" title="樱花粉"><span class="color-sq" style="background:#f687b3;"></span></button>
-                <button class="tool-btn" onclick="applyClass('hl-marker-purple')" title="香芋紫"><span class="color-sq" style="background:#b794f4;"></span></button>
                 <button class="tool-btn" onclick="applyClass('hl-marker-blue')" title="海盐蓝"><span class="color-sq" style="background:#63b3ed;"></span></button>
-                <button class="tool-btn" onclick="applyClass('hl-gray-bg')" title="灰色背景块"><span class="color-sq" style="background:#cbd5e0;"></span></button>
 
                 <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
 
-                <button class="tool-btn" onclick="applyClass('hl-strike-red')" title="红色删除线" style="color:#c53030; font-weight:bold; text-decoration:line-through;">S</button>
+                <button class="tool-btn" onclick="applyClass('hl-gray-bg')" title="灰底"><span class="color-sq" style="background:#cbd5e0;"></span></button>
+               
+                <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
+               
+                <button class="tool-btn" onclick="applyClass('hl-strike-red')" title="删除线" style="color:#c53030; font-weight:bold; text-decoration:line-through;">S</button>
             </div>
+            
         </div>
 
         <div class="control-group">
-            <label>🧩 添加新主题模块</label>
-            <div class="color-picker-container" id="color-picker">
-                </div>
+            <label>🧩 添加新主题</label>
+            <div class="color-picker-container" id="color-picker"></div>
             <div style="margin-top:15px; display:flex; gap:10px;">
                 <input type="text" id="new-card-icon" placeholder="Emoji" style="width: 80px; text-align:center;">
                 <input type="text" id="new-card-title" placeholder="主题名称" style="flex:1;">
@@ -274,7 +231,7 @@
              <button class="btn btn-add" onclick="addNewCard()" style="margin-top:10px;">+ 添加到画布</button>
         </div>
 
-        <button class="btn btn-save" onclick="exportImage()">✨ 保存图片</button>
+        <button class="btn btn-save" onclick="exportImage()">✨ 保存为长图</button>
     </div>
 
     <div class="main-area">
@@ -291,16 +248,13 @@
                 </div>
             </div>
 
-            <div class="content-grid" id="card-container">
-            </div>
-
-            <div class="footer">
-                Created with Daily Log Maker • 记录生活中的小确幸
-            </div>
+            <div class="content-grid" id="card-container"></div>
+            <div class="footer">Created with Daily Log Maker • 记录生活中的小确幸</div>
         </div>
     </div>
 
     <script>
+        // --- 核心逻辑 ---
         const themes = [
             { color: '#4fd1c5', shadow: 'rgba(79, 209, 197, 0.25)', pale: '#e6fffa' },
             { color: '#63b3ed', shadow: 'rgba(99, 179, 237, 0.25)', pale: '#ebf8ff' },
@@ -311,12 +265,23 @@
         ];
 
         let selectedThemeIndex = 0;
+        let savedRange = null;
+
+        // 图片交互状态
+        let currentSelectedImg = null;
+        let isResizing = false;
+        let resizeStartX = 0;
+        let resizeStartWidth = 0;
 
         window.onload = function() {
             renderColorPicker();
             updateHeader();
-            // 演示数据
-            addCardToDom('测试', '📏', 0, `<b>添加内容！</b><br>即使内容超过屏幕，生成图片时也会完整保留。<br>不会再出现截断的情况。<br>...<br>...<br>（底部测试）`);
+            
+            // 初始化交互事件
+            setupImageInteraction();
+
+            // 示例内容
+            addCardToDom('图片交互', '📸', 0, `<b>现在你可以更自由地操作图片了！</b><br>1. 插入图片后，<b>点击它</b>会出现蓝框。<br>2. 鼠标移到<b>右下角</b>，拖拽可调整大小。<br>3. 选中时按 <b>Delete</b> 键可直接删除。<br><img src="https://cdn-icons-png.flaticon.com/512/2909/2909805.png" style="width:120px;">`);
             addCardToDom('任务清单', '📝', 1, `<b>今日待办：</b><ul><li>上线新版本 Feature A</li><li><span class="hl-marker-green">修复两个高优先级 Bug</span></li></ul>`);
         };
 
@@ -345,8 +310,7 @@
             const title = document.getElementById('new-card-title').value;
             const icon = document.getElementById('new-card-icon').value || '📌';
             if (!title) { alert('请填写主题名称~'); return; }
-            const placeholderContent = `点击输入内容...<ul><li>清单项 1</li><li>清单项 2</li></ul>`;
-            addCardToDom(title, icon, selectedThemeIndex, placeholderContent);
+            addCardToDom(title, icon, selectedThemeIndex, `点击输入内容...`);
             document.getElementById('new-card-title').value = '';
             document.getElementById('new-card-icon').value = '';
         }
@@ -372,105 +336,172 @@
             container.appendChild(card);
         }
 
-        function formatDoc(cmd, value = null) {
-            document.execCommand(cmd, false, value);
-            focusEditor();
-        }
-
+        function formatDoc(cmd, value = null) { document.execCommand(cmd, false, value); focusEditor(); }
+        
         function clearAllFormats() {
             document.execCommand('removeFormat', false, null);
-            document.execCommand('unlink', false, null);
-            const selection = window.getSelection();
-            if (!selection.rangeCount) return;
-            const range = selection.getRangeAt(0);
-            let node = range.commonAncestorContainer;
-            if (node.nodeType === 3) node = node.parentNode;
-            if (node.tagName === 'SPAN' && (node.className.includes('hl-') || node.style.backgroundColor || node.style.textDecoration)) {
-                const parent = node.parentNode;
-                while (node.firstChild) parent.insertBefore(node.firstChild, node);
-                parent.removeChild(node);
+            const sel = window.getSelection();
+            if(!sel.rangeCount) return;
+            let node = sel.getRangeAt(0).commonAncestorContainer;
+            if(node.nodeType === 3) node = node.parentNode;
+            if(node.tagName === 'SPAN' && (node.className.includes('hl-') || node.style.backgroundColor)) {
+                const p = node.parentNode;
+                while(node.firstChild) p.insertBefore(node.firstChild, node);
+                p.removeChild(node);
             }
             focusEditor();
         }
 
-        function applyClass(className) {
-            const selection = window.getSelection();
-            if (!selection.rangeCount || selection.isCollapsed) {
-                 alert('💡 小技巧：请先选中文字，再点击颜色按钮哦~'); return;
-            }
-            const range = selection.getRangeAt(0);
-            const span = document.createElement('span');
-            span.className = className;
-            try { range.surroundContents(span); } 
-            catch (e) { document.execCommand('insertHTML', false, `<span class="${className}">${selection.toString()}</span>`); }
-            selection.removeAllRanges();
+        function applyClass(cls) {
+            const sel = window.getSelection();
+            if(!sel.rangeCount || sel.isCollapsed) { alert('请先选中文字~'); return; }
+            try {
+                const span = document.createElement('span'); span.className = cls;
+                sel.getRangeAt(0).surroundContents(span);
+            } catch(e) { document.execCommand('insertHTML', false, `<span class="${cls}">${sel.toString()}</span>`); }
+            sel.removeAllRanges();
         }
         
         function focusEditor() {
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                const container = range.commonAncestorContainer;
-                if (container.nodeType === 3) container.parentNode.focus();
-                else container.focus();
+            const sel = window.getSelection();
+            if(sel.rangeCount > 0) {
+                const node = sel.getRangeAt(0).commonAncestorContainer;
+                (node.nodeType === 3 ? node.parentNode : node).focus();
             }
         }
 
-        // --- 核心修复：克隆截图法 (彻底解决截断问题) ---
+        // --- 图片逻辑 Start ---
+
+        function triggerImageUpload() {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) { alert('请先点击您想插入图片的卡片位置！'); return; }
+            let node = sel.anchorNode;
+            const isInsideCard = node && (node.nodeType === 3 ? node.parentNode : node).closest('.card-body');
+            if (!isInsideCard) { alert('⚠️ 请先将光标放置在右侧的卡片内容编辑区内！'); return; }
+            savedRange = sel.getRangeAt(0);
+            document.getElementById('img-upload').click();
+        }
+
+        document.getElementById('img-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                if (savedRange) {
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(savedRange);
+                }
+                // 修改：插入时不带内联样式，依靠 CSS 居中
+                document.execCommand('insertHTML', false, `<img src="${evt.target.result}" style="width:100px;">`);
+            };
+            reader.readAsDataURL(file);
+            this.value = '';
+        });
+
+        function setupImageInteraction() {
+            document.addEventListener('click', function(e) {
+                if (e.target.tagName === 'IMG' && e.target.closest('.card-body')) {
+                    selectImage(e.target);
+                } else {
+                    deselectImage();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if ((e.key === 'Delete' || e.key === 'Backspace') && currentSelectedImg) {
+                    e.preventDefault(); 
+                    currentSelectedImg.remove();
+                    currentSelectedImg = null;
+                }
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isResizing && currentSelectedImg) {
+                    handleResize(e);
+                    return;
+                }
+                if (currentSelectedImg && e.target === currentSelectedImg) {
+                    const rect = currentSelectedImg.getBoundingClientRect();
+                    const isInBottomRight = (e.clientX > rect.right - 20) && (e.clientY > rect.bottom - 20);
+                    currentSelectedImg.style.cursor = isInBottomRight ? 'nwse-resize' : 'default';
+                }
+            });
+
+            document.addEventListener('mousedown', function(e) {
+                if (currentSelectedImg && e.target === currentSelectedImg && currentSelectedImg.style.cursor === 'nwse-resize') {
+                    isResizing = true;
+                    resizeStartX = e.clientX;
+                    resizeStartWidth = currentSelectedImg.offsetWidth;
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isResizing = false;
+            });
+        }
+
+        function selectImage(img) {
+            if (currentSelectedImg && currentSelectedImg !== img) {
+                currentSelectedImg.classList.remove('img-selected');
+            }
+            currentSelectedImg = img;
+            currentSelectedImg.classList.add('img-selected');
+        }
+
+        function deselectImage() {
+            if (currentSelectedImg) {
+                currentSelectedImg.classList.remove('img-selected');
+                currentSelectedImg = null;
+            }
+        }
+
+        function handleResize(e) {
+            if (!currentSelectedImg) return;
+            const deltaX = e.clientX - resizeStartX;
+            const newWidth = resizeStartWidth + deltaX;
+            if (newWidth > 20) {
+                currentSelectedImg.style.width = newWidth + 'px';
+                currentSelectedImg.style.maxWidth = '100%'; 
+                currentSelectedImg.style.height = 'auto';
+            }
+        }
+
         function exportImage() {
+            deselectImage();
             const originalNode = document.getElementById('capture-node');
             const btn = document.querySelector('.btn-save');
             const originalText = btn.innerText;
-            btn.innerText = '⏳ 生成长图中...';
+            btn.innerText = '⏳ 生成中...';
             btn.style.opacity = 0.7;
 
-            // 1. 克隆节点
             const clone = originalNode.cloneNode(true);
-            
-            // 2. 将克隆节点放置在 Body 中，绝对定位，但可见
-            // 关键：宽度保持一致，高度设为 auto 让其自然撑开，zIndex 设为负数不遮挡当前视图
-            clone.style.position = 'absolute';
-            clone.style.top = '0';
-            clone.style.left = '0';
-            clone.style.width = '850px'; // 保持原宽度
-            clone.style.height = 'auto'; // 允许无限高度
-            clone.style.zIndex = '-9999'; 
-            clone.style.margin = '0';
-            clone.style.transform = 'none'; // 移除任何可能缩放
-            
-            // 3. 移除克隆节点中的删除按钮 (避免截图进去)
+            clone.style.position = 'absolute'; clone.style.top = '0'; clone.style.left = '0';
+            clone.style.width = '850px'; clone.style.height = 'auto'; clone.style.zIndex = '-9999'; 
+            clone.style.transform = 'none'; clone.style.boxShadow = 'none';
+
             const deleteBtns = clone.querySelectorAll('.card-actions');
             deleteBtns.forEach(b => b.style.display = 'none');
-            
-            // 4. 移除阴影以便拼接
-            clone.style.boxShadow = 'none';
 
             document.body.appendChild(clone);
 
-            // 5. 截图
             html2canvas(clone, {
-                scale: 2.5, // 保持高清
-                useCORS: true,
-                backgroundColor: null,
-                windowWidth: clone.scrollWidth,
-                windowHeight: clone.scrollHeight
+                scale: 2.5, useCORS: true, backgroundColor: null,
+                windowWidth: clone.scrollWidth, windowHeight: clone.scrollHeight
             }).then(canvas => {
-                // 下载
                 const link = document.createElement('a');
                 const dateStr = document.getElementById('input-date').value.replace(/[^\w\s]/gi, '_').substring(0, 10);
-                link.download = `每日记录_Long_${dateStr}.png`;
+                link.download = `每日记录_${dateStr}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
                 
-                // 恢复 UI
                 document.body.removeChild(clone);
-                btn.innerText = originalText;
-                btn.style.opacity = 1;
+                btn.innerText = originalText; btn.style.opacity = 1;
             }).catch(err => {
                 console.error(err);
                 document.body.removeChild(clone);
-                btn.innerText = '❌ 出错了';
-                setTimeout(() => btn.innerText = originalText, 2000);
+                btn.innerText = '❌ 出错了'; setTimeout(() => btn.innerText = originalText, 2000);
             });
         }
     </script>
