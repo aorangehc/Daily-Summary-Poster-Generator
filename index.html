@@ -127,22 +127,11 @@
             white-space: pre-wrap; font-weight: 400;
         }
         
-        /* --- 核心：图片样式 (Updated) --- */
         .card-body img {
-            max-width: 100%;
-            border-radius: 8px;
-            /* 修改点：display:block + margin:auto 实现居中 */
-            display: block; 
-            margin: 10px auto; 
-            
-            cursor: default;
-            pointer-events: auto; 
-            box-sizing: border-box;
-            border: 2px solid transparent;
-            transition: box-shadow 0.2s;
+            max-width: 100%; border-radius: 8px; display: block; margin: 10px auto; 
+            cursor: default; pointer-events: auto; box-sizing: border-box; border: 2px solid transparent; transition: box-shadow 0.2s;
         }
         
-        /* 图片被选中时的样式 */
         .card-body img.img-selected {
             border-color: var(--color-focus);
             box-shadow: 0 0 0 4px rgba(99, 179, 237, 0.2);
@@ -176,7 +165,7 @@
         
         <div class="control-group">
             <label>📅 日期</label>
-            <input type="text" id="input-date" value="2023.11.14 | Tuesday" oninput="updateHeader()">
+            <input type="text" id="input-date" value="" oninput="updateHeader()">
         </div>
         <div class="control-group">
             <label>📝 主标题</label>
@@ -243,7 +232,7 @@
                         <p contenteditable="true" id="display-quote">保持热爱，奔赴山海。Have a nice day!</p>
                     </div>
                     <div class="header-right">
-                        <span class="date-badge" contenteditable="true" id="display-date">2023.11.14 | Tuesday</span>
+                        <span class="date-badge" contenteditable="true" id="display-date"></span>
                     </div>
                 </div>
             </div>
@@ -274,8 +263,26 @@
         let resizeStartWidth = 0;
 
         window.onload = function() {
+            // --- 修改处：获取真实的北京时间并格式化 ---
+            const d = new Date();
+            // 使用 toLocaleString 强制转换为北京时间，解决时区问题
+            const beijingDate = new Date(d.toLocaleString("en-US", {timeZone: "Asia/Shanghai"}));
+            
+            const year = beijingDate.getFullYear();
+            const month = String(beijingDate.getMonth() + 1).padStart(2, '0');
+            const day = String(beijingDate.getDate()).padStart(2, '0');
+            
+            const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const weekDay = weekDays[beijingDate.getDay()];
+            
+            const finalDateStr = `${year}.${month}.${day} | ${weekDay}`;
+            
+            // 将计算好的日期赋值给 Input 和 Display
+            document.getElementById('input-date').value = finalDateStr;
+            // ------------------------------------------
+
             renderColorPicker();
-            updateHeader();
+            updateHeader(); // 这里会将 input 的值同步到 header 显示
             
             // 初始化交互事件
             setupImageInteraction();
@@ -392,7 +399,6 @@
                     sel.removeAllRanges();
                     sel.addRange(savedRange);
                 }
-                // 修改：插入时不带内联样式，依靠 CSS 居中
                 document.execCommand('insertHTML', false, `<img src="${evt.target.result}" style="width:100px;">`);
             };
             reader.readAsDataURL(file);
